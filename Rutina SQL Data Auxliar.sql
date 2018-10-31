@@ -108,7 +108,7 @@ SELECT
 										   ELSE egp.NUMERO_DOCUMENTO 
 									  END
 		/*4*/,'TIPO_PERSONA'	= CASE	WHEN egp.TIPO_PRESTAMO = 'GRUPO SOLIDARIO' THEN CoordGrupo.TIPO_PERSONA
-									WHEN egp.TIPO_PRESTAMO != 'GRUPO SOLIDARIO' AND egp.TIPO_PERSONA = 'J' THEN 'Jurídica'
+									WHEN egp.TIPO_PRESTAMO != 'GRUPO SOLIDARIO' AND egp.TIPO_PERSONA = 'J' THEN 'Jurï¿½dica'
 									ELSE 'Natural'
 							   END
 		/*5*/,'NO_CREDITOS'	= Cant_Ptmo.CantPtmo 
@@ -126,8 +126,7 @@ SELECT
 																THEN egp.SALDO_MO * dbo.FN_ObtenerTipoCambio(egp.FECHA_CASTIGO)
 														    /* Aplicar para moneda 1,2,3 y creditos que no estan saneados */
 														    ELSE egp.SALDO_MN
-													  END)
-										)
+													  END) /*FIN DEL CONVERT*/)
 		/*16*/,'SALDO_INTERES' =  CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado' THEN egp.INTERESES_SANEADOS_MN
 									ELSE egp.DEVENGADO_INT_CTE_MN
 								END 
@@ -136,20 +135,18 @@ SELECT
    											  FROM BS_HISTORIA_PLAZO bhp WITH (NOLOCK) 
 											  WHERE bhp.SALDOS_JTS_OID =s.JTS_OID AND bhp.TIPOMOV='P' AND bhp.TZ_LOCK=0 AND bhp.INTERESPAGADO > 0
 											  GROUP BY bhp.SALDOS_JTS_OID,  bhp.FECHAVALOR
-											  ORDER BY bhp.FECHAVALOR DESC),0) 
-
-
+											  ORDER BY bhp.FECHAVALOR DESC),0)
 		/*19*/,'FECHA_APROBACION'	 = FORMAT(ISNULL(sc.C5231,egp.FECHA_DESEMBOLSO),'dd/MM/yyyy')  --Si la fecha de aprobacion es nula, significa que es migrado de
 		                                                                                 --abacus, para ese caso utilizo la fecha de desembolsos en saldo
 		/*20*/,'FECHA_DESEMBOLSO'	 = ISNULL(FORMAT(egp.FECHA_DESEMBOLSO,'dd/MM/yyyy'),'')
 		/*21*/,'FECHA_VENCIMIENTO'	 = (SELECT FORMAT( MAX(bp.C2302),'dd/MM/yyyy') FROM BS_PLANPAGOS bp with (nolock) WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 )
 	    /*22*/,'PLAZO'			 = DATEDIFF(DAY,s.C1620,(	SELECT MAX(bp.C2302)  
 														FROM BS_PLANPAGOS bp with (nolock) 
-														WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 )
-													  )
-	    /*23*/,'Fecha_primer_pago'		 = FORMAT(egp.FECHA_1ERPAGO_PACTADO,'dd/MM/yyyy')
-		/*24*/,'Fecha_ultimo_pago_ppal' = ISNULL(FORMAT(Bhp_Pagos.Fecha_Ult_Pago,'dd/MM/yyyy'),'')
-		/*25*/,'Fecha_ultimo_pago_int' = ISNULL(FORMAT(Bhp_Pagos_Int.Fecha_Ult_Pago,'dd/MM/yyyy'),'')
+														WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 ) /* FIN DEL DATEDIFF*/)
+	    
+	    /*23*/,'Fecha_primer_pago'		  = FORMAT(egp.FECHA_1ERPAGO_PACTADO,'dd/MM/yyyy')
+		/*24*/,'Fecha_ultimo_pago_ppal'  = ISNULL(FORMAT(Bhp_Pagos.Fecha_Ult_Pago,'dd/MM/yyyy'),'')
+		/*25*/,'Fecha_ultimo_pago_int'	  = ISNULL(FORMAT(Bhp_Pagos_Int.Fecha_Ult_Pago,'dd/MM/yyyy'),'')
 		/*26*/,'FECHA_INGRESO_MORA_PPAL' = CASE 
 											WHEN FORMAT(egp.FECHA_EMPESO_MORA_CAPITAL,'dd/MM/yyyy') = '01/01/1900' THEN ''
 											ELSE FORMAT(egp.FECHA_EMPESO_MORA_CAPITAL,'dd/MM/yyyy')
@@ -170,10 +167,14 @@ SELECT
 								WHEN 'C' THEN 'Irregular'
 								ELSE ''
 							END  
-		/*34*/,'DIAS_GRACIA' = isnull(DiaGracia.dia,0)
-	    /*35*/,'TIPO_TASA' = CASE WHEN /*cp.C6251*/egp.PRODUCTO LIKE '%COLABORADORES%' THEN 'Variable' ELSE 'Fija' END
-	    /*36*/,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,2), (CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado' AND egp.TASA_INTERES = 0 
-																THEN (	
+		/*34*/,'DIAS_GRACIA'	= isnull(DiaGracia.dia,0)
+	    /*35*/,'TIPO_TASA'	= CASE WHEN CC.C3206='S' THEN 'Variable' ELSE 'Fija' END
+	    /*36*/,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,2), (CASE WHEN (egp.SITUACION_PRESTAMO = 'Saneado' AND egp.TASA_INTERES = 0)
+																OR CC.C3206 ='S' 
+																THEN ( /* si se cumple la condicion 
+																		 se recupera directamente
+																		 del desembolso
+																		 */	
 																		SELECT hp.TASAINTERES 
 																		FROM BS_HISTORIA_PLAZO hp 
 																		WHERE (hp.TIPOMOV = 'A' 
@@ -181,18 +182,28 @@ SELECT
 																		AND hp.SALDOS_JTS_OID = s.JTS_OID 
 																		AND hp.TZ_LOCK = 0)
 																ELSE egp.TASA_INTERES
-														END)
-										)
-	    /*37*/ ,'TASA_VIGENTE' = CONVERT(NUMERIC(15,2), (CASE WHEN egp.CODIGO_ESTADO IN ('C','E') AND egp.TASA_INTERES = 0 THEN (SELECT hp.TASAINTERES FROM BS_HISTORIA_PLAZO hp WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I') AND hp.SALDOS_JTS_OID = s.JTS_OID AND hp.TZ_LOCK = 0)
-							 ELSE egp.TASA_INTERES
-						END))
-	  ,'Tasa_efectiva_vigente' = CONVERT(NUMERIC(15,2),  (POWER(1 + s.C6645 * 12.0 / 100 / 365, 365 / 1) - 1)* 100) 		
-	  ,'TASA_MORA' =  CONVERT(NUMERIC(15,2),( CASE WHEN egp.CODIGO_ESTADO IN ('C','E') AND egp.TASA_MORA = 0 THEN (SELECT hp.TASAMORA FROM BS_HISTORIA_PLAZO hp WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I') AND hp.SALDOS_JTS_OID = s.JTS_OID AND hp.TZ_LOCK = 0)
-							 ELSE egp.TASA_MORA
-					 END))
-	  ,'TIPO_GARANTIA' = egp.TIPO_GARANTIA
-	  ,'DESCRIPCION_GARANTIA' = dbo.FN_DescripcionGarantias(egp.NRO_PRESTAMO) --El mostrar las garantias concatenadas hace que la consulta dilate mas de 10 minutos
-	  ,'VALOR_GARANTIA' = ISNULL(MtosGtias.MontoGarantias,0)
+														END) /*FIN DEL CONVERT*/ ) 
+	    /*37*/ ,'TASA_VIGENTE' = CONVERT(NUMERIC(15,2), (CASE WHEN egp.CODIGO_ESTADO IN ('C','E') AND egp.TASA_INTERES = 0 
+																THEN (SELECT hp.TASAINTERES 
+																FROM BS_HISTORIA_PLAZO hp 
+																WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I')
+																AND hp.SALDOS_JTS_OID = s.JTS_OID AND
+																hp.TZ_LOCK = 0)
+																ELSE egp.TASA_INTERES
+													END)  /* FIN DEL CONVERT*/)
+		/*38*/,'Tasa_efectiva_vigente' = CONVERT(NUMERIC(15,2),  (POWER(1 + s.C6645 * 12.0 / 100 / 365, 365 / 1) - 1)* 100) 		
+	    /*39*/,'TASA_MORA' =  CONVERT(NUMERIC(15,2),( CASE	
+														WHEN egp.CODIGO_ESTADO IN ('C','E') AND egp.TASA_MORA = 0 
+															THEN (	SELECT hp.TASAMORA 
+																	FROM BS_HISTORIA_PLAZO hp 
+															      	WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I') 
+															      	AND hp.SALDOS_JTS_OID = s.JTS_OID 
+															      	AND hp.TZ_LOCK = 0) 
+														ELSE egp.TASA_MORA
+													END) /* FIN DE CONVERT*/ )
+		/*40*/,'TIPO_GARANTIA'		= egp.TIPO_GARANTIA
+		/*41*/,'DESCRIPCION_GARANTIA'	= dbo.FN_DescripcionGarantias(egp.NRO_PRESTAMO) --El mostrar las garantias concatenadas hace que la consulta dilate mas de 10 minutos
+		/*42*/,'VALOR_GARANTIA'		= ISNULL(MtosGtias.valor_contable,0)
 	  ,'MONTO_CUOTA' = CASE WHEN s.C1677 = 'F' THEN bpo.CuotaCapInt /*(SELECT (bpo.Capital+bpo.Intereses) 
 													 FROM BS_PLANPAGOS_ORIGINAL bpo WITH (NOLOCK)
 													 WHERE bpo.Saldos_JTS_OID = s.JTS_OID 
@@ -269,14 +280,16 @@ FROM SALDOS s WITH (NOLOCK)
  			   WHERE bshp.SALDOS_JTS_OID = egp.JTS_OID AND bshp.INTERESPAGADO > 0 AND bshp.tipomov = 'P' AND bshp.TZ_LOCK = 0
                GROUP BY bshp.SALDOS_JTS_OID) AS Bhp_Pagos_Int --ON egp.JTS_OID = Bhp_Pagos.SALDOS_JTS_OID               
 
-  OUTER APPLY (SELECT SUM(CASE WHEN gg.GAR_MONEDA = 2 THEN ISNULL(gg.GAR_VALORGRAVAMEN,0) * dbo.FN_ObtenerTipoCambio(gg.GAR_FECHA)
-							 WHEN gg.GAR_MONEDA = 3 THEN ISNULL(gg.GAR_VALORGRAVAMEN,0) * @TC
-							 WHEN gg.GAR_MONEDA = 1 THEN ISNULL(gg.GAR_VALORGRAVAMEN,0)
-							 ELSE 0
-						END) AS MontoGarantias
-				     ,gr.NROSOLICITUD
+  OUTER APPLY (	
+  				SELECT 
+						'valor_contable'    =SUM(  CASE	WHEN gg.GAR_MONEDA = 1 THEN -ssgar.C1604 
+														WHEN GG.GAR_MONEDA = 2 THEN -ssgar.C1604 * dbo.FN_ObtenerTipoCambio(gg.GAR_FECHA)
+														WHEN GG.GAR_MONEDA = 3 THEN -ssgar.C1604 * @TC
+				                                   END )		
+				,gr.NROSOLICITUD
                FROM GR_RELACIONGTIACREDSOLIC gr WITH (NOLOCK) 
                INNER JOIN GR_GARANTIAS gg WITH (NOLOCK) ON gr.NROGARANTIA = gg.NROGARANTIA 
+               INNER JOIN SALDOS ssgar ON ssgar.c9314 = 1 AND ssgar.TZ_LOCK =0 AND ssgar.CUENTA =gg.NROGARANTIA
                WHERE gr.NROSOLICITUD = s.C1704 AND gr.TZ_LOCK = 0 AND gg.TZ_LOCK = 0
                GROUP BY gr.NROSOLICITUD
 			  ) AS MtosGtias 
