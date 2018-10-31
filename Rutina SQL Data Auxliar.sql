@@ -33,7 +33,6 @@ CREATE INDEX IdxCLIENTE ON #FN_GS_Miembros(COD_CLIENTE_M)
 SELECT * 
 INTO #TempEGP
 FROM dbo.FN_EGP_FUNDESER_UNIVERSO(@FechaCorte) AS egp
-WHERE egp.SITUACION_PRESTAMO <> 'Saneado'
 CREATE INDEX IdxJTS ON #TempEGP(JTS_OID)
 CREATE INDEX IdxCliente ON #TempEGP(CODIGO_CLIENTE)
 
@@ -101,7 +100,7 @@ INSERT INTO [Aux_cartera_SIBOIF_Resultado_20171130_1-0-0]
 	Interno_FechaCorte,
 	Interno_ControlVersion
 )
-SELECT TOP 100
+SELECT 
 		/*1*/ 'COD_CLIENTE'	= egp.CODIGO_CLIENTE
 		/*2*/,'NOMBRE_CLIENTE'= egp.NOMBRE_CLIENTE
 		/*3*/,'NUM_IDENTIFICACION' = CASE WHEN egp.TIPO_PRESTAMO = 'GRUPO SOLIDARIO' THEN CoordGrupo.NumDocumento
@@ -171,12 +170,20 @@ SELECT TOP 100
 								WHEN 'C' THEN 'Irregular'
 								ELSE ''
 							END  
-	   /*34*/,'DIAS_GRACIA' = 0
-	  ,'TIPO_TASA' = CASE WHEN /*cp.C6251*/egp.PRODUCTO LIKE '%COLABORADORES%' THEN 'Variable' ELSE 'Fija' END
-	  ,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,2), (CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado' AND egp.TASA_INTERES = 0 THEN (SELECT hp.TASAINTERES FROM BS_HISTORIA_PLAZO hp WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I') AND hp.SALDOS_JTS_OID = s.JTS_OID AND hp.TZ_LOCK = 0)
-								 ELSE egp.TASA_INTERES
-							END))
-	  ,'TASA_VIGENTE' = CONVERT(NUMERIC(15,2), (CASE WHEN egp.CODIGO_ESTADO IN ('C','E') AND egp.TASA_INTERES = 0 THEN (SELECT hp.TASAINTERES FROM BS_HISTORIA_PLAZO hp WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I') AND hp.SALDOS_JTS_OID = s.JTS_OID AND hp.TZ_LOCK = 0)
+		/*34*/,'DIAS_GRACIA' = isnull(DiaGracia.dia,0)
+	    /*35*/,'TIPO_TASA' = CASE WHEN /*cp.C6251*/egp.PRODUCTO LIKE '%COLABORADORES%' THEN 'Variable' ELSE 'Fija' END
+	    /*36*/,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,2), (CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado' AND egp.TASA_INTERES = 0 
+																THEN (	
+																		SELECT hp.TASAINTERES 
+																		FROM BS_HISTORIA_PLAZO hp 
+																		WHERE (hp.TIPOMOV = 'A' 
+																		OR hp.TIPOMOV = 'I') 
+																		AND hp.SALDOS_JTS_OID = s.JTS_OID 
+																		AND hp.TZ_LOCK = 0)
+																ELSE egp.TASA_INTERES
+														END)
+										)
+	    /*37*/ ,'TASA_VIGENTE' = CONVERT(NUMERIC(15,2), (CASE WHEN egp.CODIGO_ESTADO IN ('C','E') AND egp.TASA_INTERES = 0 THEN (SELECT hp.TASAINTERES FROM BS_HISTORIA_PLAZO hp WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I') AND hp.SALDOS_JTS_OID = s.JTS_OID AND hp.TZ_LOCK = 0)
 							 ELSE egp.TASA_INTERES
 						END))
 	  ,'Tasa_efectiva_vigente' = CONVERT(NUMERIC(15,2),  (POWER(1 + s.C6645 * 12.0 / 100 / 365, 365 / 1) - 1)* 100) 		
@@ -336,5 +343,16 @@ FROM SALDOS s WITH (NOLOCK)
 				)x
   			  ORDER BY x.Numero_Cuota desc
 			 ) bpo
+  OUTER APPLY (	
+  				SELECT TOP(1) 'Dia'= DATEDIFF(DAY, egp.FECHA_DESEMBOLSO, bpo.Fecha_Vencimiento)
+                FROM BS_PLANPAGOS_ORIGINAL bpo  WITH (NOLOCK)
+                 /* Primera Cuota donde solo se paga interes */
+                INNER JOIN BS_PLANPAGOS_ORIGINAL bpo2 WITH (NOLOCK) ON bpo2.Saldos_JTS_OID = bpo.Saldos_JTS_OID AND bpo2.Numero_Cuota =1 AND bpo2.Capital =0 AND bpo2.Intereses>0
+				WHERE bpo.Saldos_JTS_OID = egp.JTS_OID 
+				AND bpo.TZ_LOCK =0
+                AND bpo.Capital >0                
+                AND bpo.Numero_Cuota>1 /* Proxima cuota donde se paga por primera vez capital */
+				ORDER BY bpo.Fecha_Vencimiento ASC        
+			  ) AS DiaGracia 		 
 WHERE s.TZ_LOCK = 0
 
