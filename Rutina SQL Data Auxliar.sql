@@ -206,24 +206,39 @@ SELECT
 		/*42*/,'VALOR_GARANTIA'		= ISNULL(MtosGtias.valor_contable,0)
 		/*43*/,'MONTO_CUOTA'			= MtoCuotaPlanPago.CapitalMasInteres
 		/*44*/,'CUOTA_TOTAL'			= MtoCuotaPlanPago.CapitalMasInteres+ISNULL(gpco.Importe_Gastos,0)	
-		/*45*/,'PRINCIPAL_CORRIENTE' = egp.SALDO_VIGENTE_MO * @TC
-	  ,'PRINCIPAL_VENCIDO' = isnull((SELECT sum(C2309) FROM BS_PLANPAGOS p with (nolock)
- 									 WHERE p.SALDO_JTS_OID=s.JTS_OID
- 									   AND p.C2302 < @FechaCorte
- 									   AND p.TZ_LOCK = 0
- 									   AND p.C2309 > 0 
- 									 ),0) * @TC
-	  ,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * @TC,0) --Interes ordinario compensatorio solo la porcion corriente
-	  ,'Interes_Cte_Vcdo' = (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
+		/*45*/,'PRINCIPAL_CORRIENTE'	= egp.SALDO_VIGENTE_MO * @TC
+		/*46*/,'PRINCIPAL_VENCIDO'		= isnull((SELECT sum(C2309) 
+		                          		     FROM BS_PLANPAGOS p with (nolock)
+ 											 WHERE p.SALDO_JTS_OID=s.JTS_OID
+ 											 AND p.C2302 < @FechaCorte
+ 											 AND p.TZ_LOCK = 0
+ 											 AND p.C2309 > 0 
+ 											),0) * @TC
+		/*47*/,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * @TC,0) --Interes ordinario compensatorio solo la porcion corriente
+		/*48*/,'Interes_Cte_Vcdo' = (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
  							 + (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) + isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente)
  							 * @TC
-	  ,'INTERES_MORATORIO' = egp.INTERES_MORATORIO_MN
-	  ,'FECHA_PROX_PAGO_PPAL' = ISNULL(PPCapital.ProxPagoPrinc,'')
-	  ,'FECHA_PROX_PAGO_INT' = ISNULL(PPInteres.ProxPagoInt,'')
-	  ,'DIAS_MORA_PRINCIPAL' = ISNULL(bpcap.DiasMoraCap,0)
-	  ,'DIAS_MORA_INTERESES' = ISNULL(bpint.DiasMoraInt,0)
-	  ,'Clasificacion' = CASE egp.CLASIFICACION_PRESTAMO WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 ELSE '' END--calif.ValorSIBOIF
-	  ,'Clasificacion_Cliente' = CASE egp.CALIFICACION_UTILIZADA WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 ELSE '' END
+		/*49*/,'INTERES_MORATORIO'		= egp.INTERES_MORATORIO_MN
+		/*50*/,'FECHA_PROX_PAGO_PPAL'	= ISNULL(PPCapital.ProxPagoPrinc,'')
+		/*51*/,'FECHA_PROX_PAGO_INT'	= ISNULL(PPInteres.ProxPagoInt,'')
+		/*52*/,'DIAS_MORA_PRINCIPAL'	= ISNULL(bpcap.DiasMoraCap,0)
+		/*53*/,'DIAS_MORA_INTERESES'	= ISNULL(bpint.DiasMoraInt,0)
+		/*54*/,'Clasificacion'		= CASE egp.CLASIFICACION_PRESTAMO 
+												WHEN 'A' THEN 1 
+												WHEN 'B' THEN 2 
+												WHEN 'C' THEN 3 
+												WHEN 'D' THEN 4 
+												WHEN 'E' THEN 5 
+												ELSE '' 
+		                      		  END
+		/*55*/,'Clasificacion_Cliente' = CASE egp.CALIFICACION_UTILIZADA 
+												WHEN 'A' THEN 1 
+												WHEN 'B' THEN 2 
+												WHEN 'C' THEN 3 
+												WHEN 'D' THEN 4 
+												WHEN 'E' THEN 5 
+												ELSE '' 
+		                             END
 	 -- ,'CALIF_UTILIZADA' = CASE egp.CALIFICACION_UTILIZADA WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 ELSE '' END
 	  ,'PROVISION' = egp.PROVISION_MN
 	  ,'SUCURSAL' = egp.DESC_SUCURSAL_PRESTAMO
@@ -254,25 +269,33 @@ FROM SALDOS s WITH (NOLOCK)
   OUTER APPLY (SELECT MAX(bshp.FECHAVALOR) AS Fecha_Ult_Pago
 				     ,bshp.SALDOS_JTS_OID  
  			   FROM bs_historia_plazo bshp WITH (NOLOCK) 
- 			   WHERE bshp.SALDOS_JTS_OID = egp.JTS_OID AND bshp.CAPITALPAGADO > 0 AND bshp.tipomov = 'P' AND bshp.TZ_LOCK = 0
-               GROUP BY bshp.SALDOS_JTS_OID) AS Bhp_Pagos --ON egp.JTS_OID = Bhp_Pagos.SALDOS_JTS_OID
+ 			   WHERE bshp.SALDOS_JTS_OID = egp.JTS_OID 
+ 			   AND bshp.CAPITALPAGADO > 0 
+ 			   AND bshp.tipomov = 'P' 
+ 			   AND bshp.TZ_LOCK = 0
+               GROUP BY bshp.SALDOS_JTS_OID) AS Bhp_Pagos 
   OUTER APPLY (SELECT MAX(bshp.FECHAVALOR) AS Fecha_Ult_Pago
 				     ,bshp.SALDOS_JTS_OID  
  			   FROM bs_historia_plazo bshp WITH (NOLOCK) 
- 			   WHERE bshp.SALDOS_JTS_OID = egp.JTS_OID AND bshp.INTERESPAGADO > 0 AND bshp.tipomov = 'P' AND bshp.TZ_LOCK = 0
-               GROUP BY bshp.SALDOS_JTS_OID) AS Bhp_Pagos_Int --ON egp.JTS_OID = Bhp_Pagos.SALDOS_JTS_OID               
+ 			   WHERE bshp.SALDOS_JTS_OID = egp.JTS_OID 
+ 			   AND bshp.INTERESPAGADO > 0 
+ 			   AND bshp.tipomov = 'P' 
+ 			   AND bshp.TZ_LOCK = 0
+               GROUP BY bshp.SALDOS_JTS_OID) AS Bhp_Pagos_Int                
 
   OUTER APPLY (	
   				SELECT 
-						'valor_contable'    =SUM(  CASE	WHEN gg.GAR_MONEDA = 1 THEN -ssgar.C1604 
-														WHEN GG.GAR_MONEDA = 2 THEN -ssgar.C1604 * dbo.FN_ObtenerTipoCambio(gg.GAR_FECHA)
-														WHEN GG.GAR_MONEDA = 3 THEN -ssgar.C1604 * @TC
-				                                   END )		
+				'valor_contable'    =SUM(CASE	WHEN gg.GAR_MONEDA = 1 THEN -ssgar.C1604 
+												WHEN GG.GAR_MONEDA = 2 THEN -ssgar.C1604 * dbo.FN_ObtenerTipoCambio(gg.GAR_FECHA)
+												WHEN GG.GAR_MONEDA = 3 THEN -ssgar.C1604 * @TC
+				                          END)		
 				,gr.NROSOLICITUD
                FROM GR_RELACIONGTIACREDSOLIC gr WITH (NOLOCK) 
                INNER JOIN GR_GARANTIAS gg WITH (NOLOCK) ON gr.NROGARANTIA = gg.NROGARANTIA 
                INNER JOIN SALDOS ssgar ON ssgar.c9314 = 1 AND ssgar.TZ_LOCK =0 AND ssgar.CUENTA =gg.NROGARANTIA
-               WHERE gr.NROSOLICITUD = s.C1704 AND gr.TZ_LOCK = 0 AND gg.TZ_LOCK = 0
+               WHERE gr.NROSOLICITUD = s.C1704 
+               AND gr.TZ_LOCK = 0 
+               AND gg.TZ_LOCK = 0
                GROUP BY gr.NROSOLICITUD
 			  ) AS MtosGtias 
   OUTER APPLY (SELECT rpd.NRODOCUMENTO AS NumDocumento,gs.NRO_PRESTAMO, rpd.TIPODOC, TIPO_PERSONA ='Natural'
@@ -285,19 +308,19 @@ FROM SALDOS s WITH (NOLOCK)
                FROM BS_PLANPAGOS_ORIGINAL bpo WITH (NOLOCK) 
                WHERE bpo.Saldos_JTS_OID = egp.JTS_OID
 			     AND bpo.Capital > 0
-               GROUP BY bpo.Saldos_JTS_OID) AS CuotaNoCargos --ON egp.JTS_OID = CuotaNoCargos.CuotaCapitalInteres
+               GROUP BY bpo.Saldos_JTS_OID) AS CuotaNoCargos 
   OUTER APPLY (SELECT FORMAT(min(bp.C2302),'dd/MM/yyyy') AS ProxPagoPrinc,bp.SALDO_JTS_OID
                FROM BS_PLANPAGOS bp WITH (NOLOCK)
                WHERE bp.SALDO_JTS_OID = egp.JTS_OID 
                  AND bp.TZ_LOCK = 0 
                  AND bp.c2309 > 0
-               GROUP BY bp.SALDO_JTS_OID) AS PPCapital --ON egp.JTS_OID = PPCapital.SALDO_JTS_OID 
+               GROUP BY bp.SALDO_JTS_OID) AS PPCapital 
   OUTER APPLY (SELECT FORMAT(min(bp.C2302),'dd/MM/yyyy') AS ProxPagoInt,bp.SALDO_JTS_OID
                FROM BS_PLANPAGOS bp WITH (NOLOCK) 
                WHERE bp.SALDO_JTS_OID = egp.JTS_OID 
                  AND bp.TZ_LOCK = 0 
                  AND bp.c2310 > 0
-               GROUP BY bp.SALDO_JTS_OID) AS PPInteres --ON egp.JTS_OID = PPInteres.SALDO_JTS_OID
+               GROUP BY bp.SALDO_JTS_OID) AS PPInteres 
   OUTER APPLY (SELECT bp.SALDO_JTS_OID,DATEDIFF(DAY,MIN(bp.C2302),p.FECHAPROCESO) AS DiasMoraInt
                FROM BS_PLANPAGOS bp,PARAMETROS p
                WHERE s.JTS_OID = bp.SALDO_JTS_OID
