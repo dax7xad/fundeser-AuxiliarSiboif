@@ -36,8 +36,8 @@ FROM dbo.FN_EGP_FUNDESER_UNIVERSO(@FechaCorte) AS egp
 CREATE INDEX IdxJTS ON #TempEGP(JTS_OID)
 CREATE INDEX IdxCliente ON #TempEGP(CODIGO_CLIENTE)
 
-TRUNCATE TABLE [Aux_cartera_SIBOIF_Resultado_20171130_1-0-0]
-INSERT INTO [Aux_cartera_SIBOIF_Resultado_20171130_1-0-0]
+TRUNCATE TABLE [Aux_cartera_SIBOIF_Resultado_20181130_1-0-0]
+INSERT INTO [Aux_cartera_SIBOIF_Resultado_20181130_1-0-0]
 (
 	Cod_Cliente,
 	Nombre_Cliente,

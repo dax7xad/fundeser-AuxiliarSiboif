@@ -1,5 +1,6 @@
+<query>
 
-CREATE TABLE [dbo].[Aux_cartera_SIBOIF_Resultado_20171130_1-0-0](
+CREATE TABLE [dbo].[{NombreTabla}](
 	Cod_Cliente [numeric](12, 0) NOT NULL,
 	Nombre_Cliente [nvarchar](200) NOT NULL,
 	Num_Identificacion [nvarchar](50) NOT NULL,
@@ -60,10 +61,11 @@ CREATE TABLE [dbo].[Aux_cartera_SIBOIF_Resultado_20171130_1-0-0](
 	Asesor_Credito [nvarchar](250) NOT NULL,
 	[Interno_FechaCorte] [datetime] NOT NULL,
 	[Interno_ControlVersion] [nvarchar](25) NOT NULL,
-	[Interno_FechaGeneracion] [datetime] NOT NULL CONSTRAINT [DF_Aux_cartera_SIBOIF_Resultado_20171130_1-0-0_Data_Internos_FechaGeneracion]  DEFAULT (getdate()),
- CONSTRAINT [PK_Aux_cartera_SIBOIF_Resultado_20171130_1-0-0] PRIMARY KEY CLUSTERED 
+	[Interno_FechaGeneracion] [datetime] NOT NULL CONSTRAINT [DF_{NombreTabla}_Data_Internos_FechaGeneracion]  DEFAULT (getdate()),
+ CONSTRAINT [PK_{NombreTabla}] PRIMARY KEY CLUSTERED 
 (
-	Cod_Credito ASC
+	[COD_CREDITO] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 
+</query>
