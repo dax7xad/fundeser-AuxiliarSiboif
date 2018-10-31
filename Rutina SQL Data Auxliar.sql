@@ -204,27 +204,9 @@ SELECT
 		/*40*/,'TIPO_GARANTIA'		= egp.TIPO_GARANTIA
 		/*41*/,'DESCRIPCION_GARANTIA'	= dbo.FN_DescripcionGarantias(egp.NRO_PRESTAMO) --El mostrar las garantias concatenadas hace que la consulta dilate mas de 10 minutos
 		/*42*/,'VALOR_GARANTIA'		= ISNULL(MtosGtias.valor_contable,0)
-	  ,'MONTO_CUOTA' = CASE WHEN s.C1677 = 'F' THEN bpo.CuotaCapInt /*(SELECT (bpo.Capital+bpo.Intereses) 
-													 FROM BS_PLANPAGOS_ORIGINAL bpo WITH (NOLOCK)
-													 WHERE bpo.Saldos_JTS_OID = s.JTS_OID 
-													   AND bpo.Numero_Cuota = 1
-													   AND bpo.Capital > 0)*/
-							ELSE 0
-					   END
-	  ,'CUOTA_TOTAL' = CASE WHEN s.C1677 = 'F' THEN bpo.CuotaCapInt /*(SELECT (bpo.Capital+bpo.Intereses) 
-													 FROM BS_PLANPAGOS_ORIGINAL bpo WITH (NOLOCK)
-													 WHERE bpo.Saldos_JTS_OID = s.JTS_OID 
-													   AND bpo.Numero_Cuota = 1
-													   AND bpo.Capital > 0)*/
-													+
-													ISNULL(gpco.Importe_Gastos
-														   --(SELECT SUM(gpco.Importe_Gastos) 
-															--FROM GASTOS_POR_CUOTA_ORIGINAL gpco WITH (NOLOCK)
-															--WHERE gpco.Saldos_JTS_OID =s.JTS_OID AND gpco.Numero_Cuota = 1 GROUP BY gpco.Saldos_JTS_OID)
-														   ,0)
-							ELSE 0
-					   END
-	  ,'PRINCIPAL_CORRIENTE' = egp.SALDO_VIGENTE_MO * @TC
+		/*43*/,'MONTO_CUOTA'			= MtoCuotaPlanPago.CapitalMasInteres
+		/*44*/,'CUOTA_TOTAL'			= MtoCuotaPlanPago.CapitalMasInteres+ISNULL(gpco.Importe_Gastos,0)	
+		/*45*/,'PRINCIPAL_CORRIENTE' = egp.SALDO_VIGENTE_MO * @TC
 	  ,'PRINCIPAL_VENCIDO' = isnull((SELECT sum(C2309) FROM BS_PLANPAGOS p with (nolock)
  									 WHERE p.SALDO_JTS_OID=s.JTS_OID
  									   AND p.C2302 < @FechaCorte
@@ -339,23 +321,12 @@ FROM SALDOS s WITH (NOLOCK)
 			   FROM #GASTOS_POR_CUOTA_ORIGINAL gpco WITH (NOLOCK)
 			   WHERE gpco.Saldos_JTS_OID = s.JTS_OID) AS gpco
   OUTER APPLY (	
-  			  SELECT TOP 1 *  FROM (
-  				SELECT (bpo.Capital+bpo.Intereses) AS CuotaCapInt
-  				,bpo.Numero_Cuota 
-				FROM BS_PLANPAGOS_ORIGINAL bpo WITH (NOLOCK)
-				WHERE bpo.Saldos_JTS_OID = s.JTS_OID 
-				AND bpo.Numero_Cuota = 2 /* TODO: Pendiente consultar por que para la mayoria de los casos se debe seleccionar la cuota 2 en vez de la 1 */
-				AND (bpo.Capital+bpo.Intereses) > 0
-				UNION ALL
-				SELECT (bpo.Capital+bpo.Intereses) AS CuotaCapInt 
-				,bpo.Numero_Cuota 
-				FROM BS_PLANPAGOS_ORIGINAL bpo WITH (NOLOCK)
-				WHERE bpo.Saldos_JTS_OID = s.JTS_OID 
-				AND bpo.Numero_Cuota = 1
-				AND (bpo.Capital+bpo.Intereses) > 0
-				)x
-  			  ORDER BY x.Numero_Cuota desc
-			 ) bpo
+			  	SELECT TOP (1) (bp.C2304 + bp.C2305) AS CapitalMasInteres
+				FROM BS_PLANPAGOS bp WITH (NOLOCK)
+				WHERE (bp.c2309+bp.C2310)>0 AND bp.TZ_LOCK =0	AND bp.SALDO_JTS_OID =EGP.JTS_OID
+				ORDER BY 
+				(CASE  WHEN  EGP.CANTIDAD_CUOTAS > EGP.CANTIDAD_CUOTAS_VENCIDAS THEN bp.c2302 END) ASC, /*  SI TIENE CUOTAS VIGENTE TOMA LA PRIMERA */
+				(CASE  WHEN  EGP.CANTIDAD_CUOTAS <= EGP.CANTIDAD_CUOTAS_VENCIDAS THEN bp.c2302 END) DESC /*  SI TODAS LAS CUOTAS ESTAN VENCIDDAS TOMO LA ULTIMA */			 )MtoCuotaPlanPago
   OUTER APPLY (	
   				SELECT TOP(1) 'Dia'= DATEDIFF(DAY, egp.FECHA_DESEMBOLSO, bpo.Fecha_Vencimiento)
                 FROM BS_PLANPAGOS_ORIGINAL bpo  WITH (NOLOCK)
