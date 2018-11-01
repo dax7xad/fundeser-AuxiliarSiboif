@@ -58,4 +58,4 @@ SELECT
 ,'Sucursal'					= CONCAT('"',TXT.Sucursal,'"')
 ,'ASESOR_CREDITO'				= CONCAT('"',TXT.ASESOR_CREDITO,'"')
 FROM [Aux_cartera_SIBOIF_Resultado_20181030_1-0-0] TXT
-WHERE TXT.Cod_Credito =17081250067502
+
