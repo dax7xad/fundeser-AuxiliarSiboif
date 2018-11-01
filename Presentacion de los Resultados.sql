@@ -33,7 +33,7 @@ SELECT
 ,'Cuotas_vencidas'			= CONVERT(NVARCHAR, txt.Cuotas_vencidas)
 ,'Modalidad'					= CONCAT('"',TXT.Modalidad,'"')
 ,'Dias_gracia'				= CONVERT(NVARCHAR, txt.Dias_gracia)
-,'Tipo_tasa'					= CONVERT(NVARCHAR, txt.Tipo_tasa)
+,'Tipo_tasa'					= CONCAT('"',TXT.Tipo_tasa,'"')
 ,'Tasa_contractual'			= CONVERT(NVARCHAR, txt.Tasa_contractual)
 ,'Tasa_vigente'				= CONVERT(NVARCHAR, txt.Tasa_vigente)
 ,'Tasa_efectiva_vigente'		= CONVERT(NVARCHAR, txt.Tasa_efectiva_vigente)
@@ -57,4 +57,5 @@ SELECT
 ,'Provision'					= CONVERT(NVARCHAR, txt.Provision)
 ,'Sucursal'					= CONCAT('"',TXT.Sucursal,'"')
 ,'ASESOR_CREDITO'				= CONCAT('"',TXT.ASESOR_CREDITO,'"')
-FROM [Aux_cartera_SIBOIF_Resultado_20171130_1-0-0] TXT
+FROM [Aux_cartera_SIBOIF_Resultado_20181030_1-0-0] TXT
+WHERE TXT.Cod_Credito =17081250067502
