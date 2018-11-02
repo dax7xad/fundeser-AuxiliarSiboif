@@ -209,14 +209,14 @@ SELECT
 		/*42*/,'VALOR_GARANTIA'		= ISNULL(MtosGtias.valor_contable,0)
 		/*43*/,'MONTO_CUOTA'			= MtoCuotaPlanPago.CapitalMasInteres
 		/*44*/,'CUOTA_TOTAL'			= MtoCuotaPlanPago.CapitalMasInteres+ISNULL(gpco.Importe_Gastos,0)	
-		/*45*/,'PRINCIPAL_CORRIENTE'	= egp.SALDO_VIGENTE_MO * @TC
+		/*45*/,'PRINCIPAL_CORRIENTE'	= egp.SALDO_VIGENTE_MO (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*46*/,'PRINCIPAL_VENCIDO'		= isnull((SELECT sum(C2309) 
 		                          		     FROM BS_PLANPAGOS p with (nolock)
  											 WHERE p.SALDO_JTS_OID=s.JTS_OID
  											 AND p.C2302 < @FechaCorte
  											 AND p.TZ_LOCK = 0
  											 AND p.C2309 > 0 
- 											),0) * @TC
+ 											),0) * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*47*/,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END) ,0) --Interes ordinario compensatorio solo la porcion corriente
 		/*48*/,'Interes_Cte_Vcdo' = (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
  							 + (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) + isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente)
