@@ -209,7 +209,7 @@ SELECT
 		/*42*/,'VALOR_GARANTIA'		= ISNULL(MtosGtias.valor_contable,0)
 		/*43*/,'MONTO_CUOTA'			= MtoCuotaPlanPago.CapitalMasInteres
 		/*44*/,'CUOTA_TOTAL'			= MtoCuotaPlanPago.CapitalMasInteres+ISNULL(gpco.Importe_Gastos,0)	
-		/*45*/,'PRINCIPAL_CORRIENTE'	= egp.SALDO_VIGENTE_MO (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
+		/*45*/,'PRINCIPAL_CORRIENTE'	= egp.SALDO_VIGENTE_MO * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*46*/,'PRINCIPAL_VENCIDO'		= isnull((SELECT sum(C2309) 
 		                          		     FROM BS_PLANPAGOS p with (nolock)
  											 WHERE p.SALDO_JTS_OID=s.JTS_OID
