@@ -36,8 +36,8 @@ FROM dbo.FN_EGP_FUNDESER_UNIVERSO(@FechaCorte) AS egp
 CREATE INDEX IdxJTS ON #TempEGP(JTS_OID)
 CREATE INDEX IdxCliente ON #TempEGP(CODIGO_CLIENTE)
 
-TRUNCATE TABLE [Aux_cartera_SIBOIF_Resultado_20181030_1-0-0]
-INSERT INTO [Aux_cartera_SIBOIF_Resultado_20181030_1-0-0]
+TRUNCATE TABLE [Aux_cartera_SIBOIF_Resultado_20181031_1-0-0]
+INSERT INTO [Aux_cartera_SIBOIF_Resultado_20181031_1-0-0]
 (
 	Cod_Cliente,
 	Nombre_Cliente,
@@ -108,7 +108,7 @@ SELECT
 										   ELSE egp.NUMERO_DOCUMENTO 
 									  END
 		/*4*/,'TIPO_PERSONA'	= CASE	WHEN egp.TIPO_PRESTAMO = 'GRUPO SOLIDARIO' THEN CoordGrupo.TIPO_PERSONA
-									WHEN egp.TIPO_PRESTAMO != 'GRUPO SOLIDARIO' AND egp.TIPO_PERSONA = 'J' THEN 'Jur�dica'
+									WHEN egp.TIPO_PRESTAMO != 'GRUPO SOLIDARIO' AND egp.TIPO_PERSONA = 'J' THEN 'Juridica'
 									ELSE 'Natural'
 							   END
 		/*5*/,'NO_CREDITOS'	= Cant_Ptmo.CantPtmo 
@@ -168,10 +168,8 @@ SELECT
 								ELSE ''
 							END  
 		/*34*/,'DIAS_GRACIA'	= isnull(DiaGracia.dia,0)
-	    /*35*/,'TIPO_TASA'	= CASE WHEN CC.C3206='S' THEN 'Variable' ELSE 'Fija' END
-	    /*36*/,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,2), (CASE WHEN (egp.SITUACION_PRESTAMO = 'Saneado' AND egp.TASA_INTERES = 0)
-																OR CC.C3206 ='S' 
-																THEN ( /* si se cumple la condicion 
+	    /*35*/,'TIPO_TASA'	= CASE WHEN /*cp.C6251*/egp.PRODUCTO LIKE '%COLABORADORES%' THEN 'Variable' ELSE 'Fija' END
+	    /*36*/,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,2), (CASE WHEN (egp.SITUACION_PRESTAMO = 'Saneado' AND egp.TASA_INTERES = 0)																									  THEN ( /* si se cumple la condicion 
 																		 se recupera directamente
 																		 del desembolso
 																		 */	
