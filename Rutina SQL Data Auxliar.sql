@@ -123,7 +123,12 @@ SELECT
 		/*14*/,'MONEDA' = CASE egp.CODIGO_MONEDA WHEN 1 THEN 'CORDOBAS' WHEN 2 THEN 'CORD MANT VALOR' WHEN 3 THEN 'DOLARES (USD)' END
 		/*15*/,'SALDO_PRINCIPAL' = CONVERT (NUMERIC(15,2),(CASE 
 															WHEN egp.CODIGO_MONEDA != 1 AND egp.SITUACION_PRESTAMO = 'Saneado' 
-																THEN egp.SALDO_MO * dbo.FN_ObtenerTipoCambio(egp.FECHA_CASTIGO)
+																THEN (CASE	WHEN egp.CODIGO_MONEDA = 2   
+																				THEN egp.SALDO_MO * dbo.FN_ObtenerTipoCambio (egp.FECHA_CASTIGO) 
+																			WHEN egp.CODIGO_MONEDA = 3   		
+																				THEN egp.SALDO_MO * @TC  
+																		END 
+																     )
 														    /* Aplicar para moneda 1,2,3 y creditos que no estan saneados */
 														    ELSE egp.SALDO_MN
 													  END) /*FIN DEL CONVERT*/)
@@ -229,14 +234,18 @@ SELECT
 												WHEN 'E' THEN 5 
 												ELSE '' 
 		                      		  END
-		/*55*/,'Clasificacion_Cliente' = CASE egp.CALIFICACION_UTILIZADA 
-												WHEN 'A' THEN 1 
-												WHEN 'B' THEN 2 
-												WHEN 'C' THEN 3 
-												WHEN 'D' THEN 4 
-												WHEN 'E' THEN 5 
-												ELSE '' 
-		                             END
+		/*55*/,'Clasificacion_Cliente' =	(CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado' THEN 5 
+											 ELSE (
+													(CASE egp.CALIFICACION_UTILIZADA 
+														WHEN 'A' THEN 1 
+														WHEN 'B' THEN 2 
+														WHEN 'C' THEN 3 
+														WHEN 'D' THEN 4 
+														WHEN 'E' THEN 5 
+														ELSE '' 
+													END)	
+												  )										
+		                                	END)  
 	 -- ,'CALIF_UTILIZADA' = CASE egp.CALIFICACION_UTILIZADA WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4 WHEN 'E' THEN 5 ELSE '' END
 	  ,'PROVISION' = egp.PROVISION_MN
 	  ,'SUCURSAL' = egp.DESC_SUCURSAL_PRESTAMO
