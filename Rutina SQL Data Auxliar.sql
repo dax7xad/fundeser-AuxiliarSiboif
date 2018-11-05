@@ -219,7 +219,7 @@ SELECT
  											),0) * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*47*/,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END) ,0) --Interes ordinario compensatorio solo la porcion corriente
 		/*48*/,'Interes_Cte_Vcdo' = (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
- 							 + (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) + isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente)
+ 							      + (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) + isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente) 
  							 * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*49*/,'INTERES_MORATORIO'		= egp.INTERES_MORATORIO_MN
 		/*50*/,'FECHA_PROX_PAGO_PPAL'	= ISNULL(PPCapital.ProxPagoPrinc,'')
