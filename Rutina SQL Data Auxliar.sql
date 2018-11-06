@@ -218,9 +218,13 @@ SELECT
  											 AND p.C2309 > 0 
  											),0) * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*47*/,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END) ,0) --Interes ordinario compensatorio solo la porcion corriente
-		/*48*/,'Interes_Cte_Vcdo' = (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
- 							      + (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) + isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente) 
- 							 * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
+		/*48*/,'Interes_Cte_Vcdo' = (CASE	WHEN s.C1728 <> 'N' OR s.C1604 = 0 OR hp.CALIFICACIONUTILIZADA IN ('D','E') THEN 0											
+												ELSE 
+												 (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
+ 												+ (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) 
+ 												+ isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente) 
+ 												* (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
+									  END )
 		/*49*/,'INTERES_MORATORIO'		= egp.INTERES_MORATORIO_MN
 		/*50*/,'FECHA_PROX_PAGO_PPAL'	= ISNULL(PPCapital.ProxPagoPrinc,'')
 		/*51*/,'FECHA_PROX_PAGO_INT'	= ISNULL(PPInteres.ProxPagoInt,'')
@@ -352,6 +356,11 @@ FROM SALDOS s WITH (NOLOCK)
   OUTER APPLY (SELECT hid.INTERES_DEVENG_VIGENTE_CONT,hid.INTERES_DEVENG_VENCIDO_CONT,hid.MORA_TASA_INT_DEVENG_VENC_CONT,hid.MORA_TASA_INT_DEVENG_VIGE_CONT
                FROM HISTORICO_DEVENGAMIENTO hid WITH (NOLOCK)
                WHERE hid.SALDO_JTS_OID = s.JTS_OID AND hid.FECHA = @FechaCorte) hd
+  OUTER APPLY (SELECT hp.SALDO_JTS_OID,hp.FECHA_PROCESO, hp.CALIFICACIONUTILIZADA,hp.PORCENTAJE_PROVISION, hp.PROVISION,hp.MITIGANTE_LIQUIDA,hp.MITIGANTE_REAL,hp.CALIFICACIONPRESTAMO,
+	                  hp.CALIFCONTAGIOPRESTAMO, hp.CALIFOBJETIVAPRESTAMO,
+	                  hp.CALIFSUBJETIVACLIENTE
+	             FROM HISTORICO_PREVISIONES hp with (nolock) 
+	             WHERE hp.FECHA_PROCESO =@FechaCorte AND hp.SALDO_JTS_OID = s.JTS_OID) hp             
   OUTER APPLY (SELECT Importe_Gastos,gpco.Saldos_JTS_OID
 			   FROM #GASTOS_POR_CUOTA_ORIGINAL gpco WITH (NOLOCK)
 			   WHERE gpco.Saldos_JTS_OID = s.JTS_OID) AS gpco
@@ -360,8 +369,8 @@ FROM SALDOS s WITH (NOLOCK)
 				FROM BS_PLANPAGOS bp WITH (NOLOCK)
 				WHERE (bp.c2309+bp.C2310)>0 AND bp.TZ_LOCK =0	AND bp.SALDO_JTS_OID =EGP.JTS_OID
 				ORDER BY 
-				(CASE  WHEN  EGP.CANTIDAD_CUOTAS > EGP.CANTIDAD_CUOTAS_VENCIDAS THEN bp.c2302 END) ASC, /*  SI TIENE CUOTAS VIGENTE TOMA LA PRIMERA */
-				(CASE  WHEN  EGP.CANTIDAD_CUOTAS <= EGP.CANTIDAD_CUOTAS_VENCIDAS THEN bp.c2302 END) DESC /*  SI TODAS LAS CUOTAS ESTAN VENCIDDAS TOMO LA ULTIMA */			 )MtoCuotaPlanPago
+				(CASE  WHEN  (EGP.CANTIDAD_CUOTAS - EGP.CUOTAS_PAGADAS) > EGP.CANTIDAD_CUOTAS_VENCIDAS THEN bp.c2302 END) ASC, /*  SI TIENE CUOTAS VIGENTE TOMA LA PRIMERA */
+				(CASE  WHEN  (EGP.CANTIDAD_CUOTAS - EGP.CUOTAS_PAGADAS)<= EGP.CANTIDAD_CUOTAS_VENCIDAS THEN bp.c2302 END) DESC /*  SI TODAS LAS CUOTAS ESTAN VENCIDDAS TOMO LA ULTIMA */			 )MtoCuotaPlanPago
   OUTER APPLY (	
   				SELECT TOP(1) 'Dia'= DATEDIFF(DAY, egp.FECHA_DESEMBOLSO, bpo.Fecha_Vencimiento)
                 FROM BS_PLANPAGOS_ORIGINAL bpo  WITH (NOLOCK)
