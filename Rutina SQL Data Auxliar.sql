@@ -218,13 +218,7 @@ SELECT
  											 AND p.C2309 > 0 
  											),0) * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*47*/,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END) ,0) --Interes ordinario compensatorio solo la porcion corriente
-		/*48*/,'Interes_Cte_Vcdo' = (CASE	WHEN s.C1728 <> 'N' OR s.C1604 = 0 OR hp.CALIFICACIONUTILIZADA IN ('D','E') THEN 0											
-												ELSE 
-												 (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
- 												+ (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) 
- 												+ isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente) 
- 												* (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
-									  END )
+		/*48*/,'Interes_Cte_Vcdo' = CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado'  THEN Saneado.Interes_Saneado_MN  ELSE EGP.INTERES_VENCIDO_MN    END 
 		/*49*/,'INTERES_MORATORIO'		= egp.INTERES_MORATORIO_MN
 		/*50*/,'FECHA_PROX_PAGO_PPAL'	= ISNULL(PPCapital.ProxPagoPrinc,'')
 		/*51*/,'FECHA_PROX_PAGO_INT'	= ISNULL(PPInteres.ProxPagoInt,'')
@@ -282,6 +276,17 @@ FROM SALDOS s WITH (NOLOCK)
               FROM #TempEGP egp2
               GROUP BY egp2.CODIGO_CLIENTE
 			 ) AS DeudaTotal ON egp.CODIGO_CLIENTE = DeudaTotal.CODIGO_CLIENTE
+	LEFT JOIN (SELECT bhp.FECHAVALOR FechaSaneado
+					 ,bhp.SALDOS_JTS_OID
+					 ,-sd.SALDO_AL_CORTE_MN AS Monto_Saneado_MN
+					 ,-sd.SALDO_AL_CORTE AS Monto_Saneado_MO
+					 ,(sd.INT_A_LIQUIDAR + sd.MORA_CONTABILIZADA) * h.TIPO_CAMBIO_OFICIAL AS Interes_Saneado_MN
+					 ,h.TIPO_CAMBIO_OFICIAL
+			   FROM BS_HISTORIA_PLAZO bhp 
+				 INNER JOIN SALDOS_DIARIOS sd ON bhp.FECHAVALOR = sd.FECHA AND bhp.SALDOS_JTS_OID = sd.SALDO_JTS_OID
+				 INNER JOIN HISTORICOTIPOSCAMBIO h ON sd.FECHA = h.FECHA_COTIZACION AND h.MONEDA = 2
+			   WHERE bhp.TIPOMOV = 'R' 
+				 AND bhp.RUBROCONTABLE = '8112020001') AS Saneado ON s.JTS_OID = Saneado.SALDOS_JTS_OID			 
   OUTER APPLY (SELECT MAX(bshp.FECHAVALOR) AS Fecha_Ult_Pago
 				     ,bshp.SALDOS_JTS_OID  
  			   FROM bs_historia_plazo bshp WITH (NOLOCK) 
@@ -355,12 +360,7 @@ FROM SALDOS s WITH (NOLOCK)
               ) bpcap
   OUTER APPLY (SELECT hid.INTERES_DEVENG_VIGENTE_CONT,hid.INTERES_DEVENG_VENCIDO_CONT,hid.MORA_TASA_INT_DEVENG_VENC_CONT,hid.MORA_TASA_INT_DEVENG_VIGE_CONT
                FROM HISTORICO_DEVENGAMIENTO hid WITH (NOLOCK)
-               WHERE hid.SALDO_JTS_OID = s.JTS_OID AND hid.FECHA = @FechaCorte) hd
-  OUTER APPLY (SELECT hp.SALDO_JTS_OID,hp.FECHA_PROCESO, hp.CALIFICACIONUTILIZADA,hp.PORCENTAJE_PROVISION, hp.PROVISION,hp.MITIGANTE_LIQUIDA,hp.MITIGANTE_REAL,hp.CALIFICACIONPRESTAMO,
-	                  hp.CALIFCONTAGIOPRESTAMO, hp.CALIFOBJETIVAPRESTAMO,
-	                  hp.CALIFSUBJETIVACLIENTE
-	             FROM HISTORICO_PREVISIONES hp with (nolock) 
-	             WHERE hp.FECHA_PROCESO =@FechaCorte AND hp.SALDO_JTS_OID = s.JTS_OID) hp             
+               WHERE hid.SALDO_JTS_OID = s.JTS_OID AND hid.FECHA = @FechaCorte) hd     
   OUTER APPLY (SELECT Importe_Gastos,gpco.Saldos_JTS_OID
 			   FROM #GASTOS_POR_CUOTA_ORIGINAL gpco WITH (NOLOCK)
 			   WHERE gpco.Saldos_JTS_OID = s.JTS_OID) AS gpco
