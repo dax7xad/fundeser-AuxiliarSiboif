@@ -187,11 +187,26 @@ SELECT
 																ELSE s.C1632
 														END) /*FIN DEL CONVERT*/ ) 
 	    /*37*/ ,'TASA_VIGENTE' = CONVERT(NUMERIC(15,4), (CASE WHEN egp.CODIGO_ESTADO IN ('C','E')  
-																THEN (SELECT hp.TASAINTERES 
-																FROM BS_HISTORIA_PLAZO hp 
-																WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I')
-																AND hp.SALDOS_JTS_OID = s.JTS_OID AND
-																hp.TZ_LOCK = 0)
+															THEN (	
+																	
+																SELECT TOP(1) X.TASAINTERES 
+																FROM
+																(
+																	SELECT HP.TASAINTERES ,hp.FECHAVALOR
+																	FROM BS_HISTORIA_PLAZO hp 
+															      	WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I')
+															      	AND hp.SALDOS_JTS_OID = s.JTS_OID 
+															      	AND hp.TZ_LOCK = 0
+															      	UNION ALL
+																	SELECT HP.TASAINTERES,hp.FECHAVALOR
+																	FROM BS_HISTORIA_PLAZO hp 
+															      	WHERE (hp.TIPOMOV = 'S')
+															      	AND hp.SALDOS_JTS_OID = s.JTS_OID 
+															      	AND hp.TZ_LOCK = 0 
+															      	AND hp.TASAINTERES >0
+																)X
+																ORDER BY X.FECHAVALOR DESC  	
+															) 																 
 																ELSE s.C1632
 													END)  /* FIN DEL CONVERT*/)
 		/*38*/,'Tasa_efectiva_vigente' = CONVERT(NUMERIC(15,4),  (POWER(1 + s.C6645 * 12.0 / 100 / 365, 365 / 1) - 1)* 100) 		
@@ -213,6 +228,7 @@ SELECT
 															      	WHERE (hp.TIPOMOV = 'S')
 															      	AND hp.SALDOS_JTS_OID = s.JTS_OID 
 															      	AND hp.TZ_LOCK = 0
+															      	AND (hp.TASAMORA - HP.TASAINTERES)>0
 																)X
 																ORDER BY X.FECHAVALOR DESC  	
 															) 
