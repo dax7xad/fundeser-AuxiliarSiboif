@@ -144,7 +144,7 @@ SELECT
 		/*19*/,'FECHA_APROBACION'	 = FORMAT(ISNULL(sc.C5231,egp.FECHA_DESEMBOLSO),'dd/MM/yyyy')  --Si la fecha de aprobacion es nula, significa que es migrado de
 		                                                                                 --abacus, para ese caso utilizo la fecha de desembolsos en saldo
 		/*20*/,'FECHA_DESEMBOLSO'	 = ISNULL(FORMAT(egp.FECHA_DESEMBOLSO,'dd/MM/yyyy'),'')
-		/*21*/,'FECHA_VENCIMIENTO'	 = (SELECT FORMAT( MAX(bp.C2302),'dd/MM/yyyy') FROM BS_PLANPAGOS bp with (nolock) WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 )
+		/*21*/,'FECHA_VENCIMIENTO'	 = (SELECT FORMAT( MAX(bp.C2302),'dd/MM/yyyy') FROM BS_PLANPAGOS bp with (nolock) WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 ) --
 	    /*22*/,'PLAZO'			 = DATEDIFF(DAY,s.C1620,(	SELECT MAX(bp.C2302)  
 														FROM BS_PLANPAGOS bp with (nolock) 
 														WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 ) /* FIN DEL DATEDIFF*/)
@@ -218,7 +218,10 @@ SELECT
  											 AND p.C2309 > 0 
  											),0) * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*47*/,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END) ,0) --Interes ordinario compensatorio solo la porcion corriente
-		/*48*/,'Interes_Cte_Vcdo' = CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado'  THEN Saneado.Interes_Saneado_MN  ELSE EGP.INTERES_VENCIDO_MN    END 
+		/*48*/,'Interes_Cte_Vcdo' = (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
+ 							      + (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) 
+ 							      + isnull(hd.MORA_TASA_INT_DEVENG_VIGE_CONT,0)))--Interes ordinario en mora (Mora calculada a la tasa de interes corriente) 
+ 							 * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*49*/,'INTERES_MORATORIO'		= egp.INTERES_MORATORIO_MN
 		/*50*/,'FECHA_PROX_PAGO_PPAL'	= ISNULL(PPCapital.ProxPagoPrinc,'')
 		/*51*/,'FECHA_PROX_PAGO_INT'	= ISNULL(PPInteres.ProxPagoInt,'')
@@ -275,18 +278,7 @@ FROM SALDOS s WITH (NOLOCK)
 				    ,egp2.CODIGO_CLIENTE
               FROM #TempEGP egp2
               GROUP BY egp2.CODIGO_CLIENTE
-			 ) AS DeudaTotal ON egp.CODIGO_CLIENTE = DeudaTotal.CODIGO_CLIENTE
-	LEFT JOIN (SELECT bhp.FECHAVALOR FechaSaneado
-					 ,bhp.SALDOS_JTS_OID
-					 ,-sd.SALDO_AL_CORTE_MN AS Monto_Saneado_MN
-					 ,-sd.SALDO_AL_CORTE AS Monto_Saneado_MO
-					 ,(sd.INT_A_LIQUIDAR + sd.MORA_CONTABILIZADA) * h.TIPO_CAMBIO_OFICIAL AS Interes_Saneado_MN
-					 ,h.TIPO_CAMBIO_OFICIAL
-			   FROM BS_HISTORIA_PLAZO bhp 
-				 INNER JOIN SALDOS_DIARIOS sd ON bhp.FECHAVALOR = sd.FECHA AND bhp.SALDOS_JTS_OID = sd.SALDO_JTS_OID
-				 INNER JOIN HISTORICOTIPOSCAMBIO h ON sd.FECHA = h.FECHA_COTIZACION AND h.MONEDA = 2
-			   WHERE bhp.TIPOMOV = 'R' 
-				 AND bhp.RUBROCONTABLE = '8112020001') AS Saneado ON s.JTS_OID = Saneado.SALDOS_JTS_OID			 
+			 ) AS DeudaTotal ON egp.CODIGO_CLIENTE = DeudaTotal.CODIGO_CLIENTE		 
   OUTER APPLY (SELECT MAX(bshp.FECHAVALOR) AS Fecha_Ult_Pago
 				     ,bshp.SALDOS_JTS_OID  
  			   FROM bs_historia_plazo bshp WITH (NOLOCK) 
@@ -302,8 +294,7 @@ FROM SALDOS s WITH (NOLOCK)
  			   AND bshp.INTERESPAGADO > 0 
  			   AND bshp.tipomov = 'P' 
  			   AND bshp.TZ_LOCK = 0
-               GROUP BY bshp.SALDOS_JTS_OID) AS Bhp_Pagos_Int                
-
+               GROUP BY bshp.SALDOS_JTS_OID) AS Bhp_Pagos_Int
   OUTER APPLY (	
   				SELECT 
 				'valor_contable'    =SUM(CASE	WHEN gg.GAR_MONEDA = 1 THEN -ssgar.C1604 
@@ -360,7 +351,7 @@ FROM SALDOS s WITH (NOLOCK)
               ) bpcap
   OUTER APPLY (SELECT hid.INTERES_DEVENG_VIGENTE_CONT,hid.INTERES_DEVENG_VENCIDO_CONT,hid.MORA_TASA_INT_DEVENG_VENC_CONT,hid.MORA_TASA_INT_DEVENG_VIGE_CONT
                FROM HISTORICO_DEVENGAMIENTO hid WITH (NOLOCK)
-               WHERE hid.SALDO_JTS_OID = s.JTS_OID AND hid.FECHA = @FechaCorte) hd     
+               WHERE hid.SALDO_JTS_OID = s.JTS_OID AND hid.FECHA = @FechaCorte) hd                 
   OUTER APPLY (SELECT Importe_Gastos,gpco.Saldos_JTS_OID
 			   FROM #GASTOS_POR_CUOTA_ORIGINAL gpco WITH (NOLOCK)
 			   WHERE gpco.Saldos_JTS_OID = s.JTS_OID) AS gpco
