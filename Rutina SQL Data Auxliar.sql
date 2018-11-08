@@ -299,13 +299,9 @@ FROM SALDOS s WITH (NOLOCK)
               GROUP BY egp2.CODIGO_CLIENTE
 			 ) AS Cant_Ptmo ON egp.CODIGO_CLIENTE = Cant_Ptmo.CODIGO_CLIENTE 
   INNER JOIN (SELECT SUM((CASE
-								WHEN egp2.CODIGO_MONEDA != 1 AND egp2.SITUACION_PRESTAMO = 'Saneado' 
-									 THEN (CASE	WHEN egp2.CODIGO_MONEDA = 2   
-													THEN egp2.SALDO_MO * dbo.FN_ObtenerTipoCambio (egp2.FECHA_CASTIGO) 
-												WHEN egp2.CODIGO_MONEDA = 3   		
-													THEN egp2.SALDO_MO * @TC  
-											END)
-														    /* Aplicar para moneda 1,2,3 y creditos que no estan saneados */
+								WHEN egp2.CODIGO_MONEDA != 1  
+									 THEN egp2.SALDO_MO * @TC 
+						 /* Aplicar para moneda 1,2,3 y creditos que no estan saneados */
 								ELSE egp2.SALDO_MN
 							END)) AS DeudaTotalMN
 				    ,egp2.CODIGO_CLIENTE
