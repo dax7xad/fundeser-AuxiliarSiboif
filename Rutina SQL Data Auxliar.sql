@@ -238,7 +238,7 @@ SELECT
  											 AND p.C2309 > 0 
  											),0) * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*47*/,'Interes_Cte_Vgte' = isnull(hd.INTERES_DEVENG_VIGENTE_CONT * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END) ,0) --Interes ordinario compensatorio solo la porcion corriente
-		/*48*/,'Interes_Cte_Vcdo' = CASE	WHEN egp.SITUACION_PRESTAMO = 'Saneado' THEN Saneado.Interes_Saneado_MN										
+		/*48*/,'Interes_Cte_Vcdo' = CASE	WHEN egp.SITUACION_PRESTAMO = 'Saneado' THEN egp.INTERESES_SANEADOS_MN										
 										ELSE								 
 									 (isnull(hd.INTERES_DEVENG_VENCIDO_CONT,0) --Interes ordinario compensatorio solo la porcion vencida (Interes vencido)
  									  + (isnull(hd.MORA_TASA_INT_DEVENG_VENC_CONT,0) 
@@ -297,18 +297,7 @@ FROM SALDOS s WITH (NOLOCK)
 				    ,egp2.CODIGO_CLIENTE
               FROM #TempEGP egp2
               GROUP BY egp2.CODIGO_CLIENTE
-			 ) AS DeudaTotal ON egp.CODIGO_CLIENTE = DeudaTotal.CODIGO_CLIENTE
-LEFT JOIN (SELECT bhp.FECHAVALOR FechaSaneado
-					,bhp.SALDOS_JTS_OID
-					,-sd.SALDO_AL_CORTE_MN AS Monto_Saneado_MN
-					,-sd.SALDO_AL_CORTE AS Monto_Saneado_MO
-					,(sd.INT_A_LIQUIDAR + sd.MORA_CONTABILIZADA) * h.TIPO_CAMBIO_OFICIAL AS Interes_Saneado_MN
-					,h.TIPO_CAMBIO_OFICIAL
-			FROM BS_HISTORIA_PLAZO bhp 
-				INNER JOIN SALDOS_DIARIOS sd ON bhp.FECHAVALOR = sd.FECHA AND bhp.SALDOS_JTS_OID = sd.SALDO_JTS_OID
-				INNER JOIN HISTORICOTIPOSCAMBIO h ON sd.FECHA = h.FECHA_COTIZACION AND h.MONEDA = 2
-			WHERE bhp.TIPOMOV = 'R' 
-				AND bhp.RUBROCONTABLE = '8112020001') AS Saneado ON s.JTS_OID = Saneado.SALDOS_JTS_OID			 		 
+			 ) AS DeudaTotal ON egp.CODIGO_CLIENTE = DeudaTotal.CODIGO_CLIENTE		 		 
   OUTER APPLY (SELECT MAX(bshp.FECHAVALOR) AS Fecha_Ult_Pago
 				     ,bshp.SALDOS_JTS_OID  
  			   FROM bs_historia_plazo bshp WITH (NOLOCK) 
