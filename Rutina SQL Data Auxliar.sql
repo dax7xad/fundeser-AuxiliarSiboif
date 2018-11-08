@@ -121,17 +121,7 @@ SELECT
 	    /*12*/,'CODIGO_MUC'	= egp.RUBRO_CONTABLE
 	    /*13*/,'MONTO_ORIGINAL' = CONVERT(NUMERIC(15,2), egp.IMPORTE_DESEMBOLSO_MO)
 		/*14*/,'MONEDA' = (SELECT cm.C6400 FROM  CO_MONEDAS cm WHERE s.MONEDA=cm.C6399)
-		/*15*/,'SALDO_PRINCIPAL' = CONVERT (NUMERIC(15,2),(CASE 
-															WHEN egp.CODIGO_MONEDA != 1 AND egp.SITUACION_PRESTAMO = 'Saneado' 
-																THEN (CASE	WHEN egp.CODIGO_MONEDA = 2   
-																				THEN egp.SALDO_MO * dbo.FN_ObtenerTipoCambio (egp.FECHA_CASTIGO) 
-																			WHEN egp.CODIGO_MONEDA = 3   		
-																				THEN egp.SALDO_MO * @TC  
-																		END 
-																     )
-														    /* Aplicar para moneda 1,2,3 y creditos que no estan saneados */
-														    ELSE egp.SALDO_MN
-													  END) /*FIN DEL CONVERT*/)
+		/*15*/,'SALDO_PRINCIPAL' = CONVERT (NUMERIC(15,2),egp.SALDO_MN)
 		/*16*/,'SALDO_INTERES' =  CASE WHEN egp.SITUACION_PRESTAMO = 'Saneado' THEN egp.INTERESES_SANEADOS_MN
 									ELSE egp.DEVENGADO_INT_CTE_MN
 								END 
