@@ -39,7 +39,7 @@ SELECT
 ,'Tasa_efectiva_vigente'		= txt.Tasa_efectiva_vigente
 ,'Tasa_mora'					= txt.Tasa_mora
 ,'Tipo_garantia'				= CASE WHEN LEN(TXT.Tipo_garantia) >0 THEN TXT.Tipo_garantia ELSE '' end 
-,'Descripcion_garantia'		= CASE WHEN LEN(TXT.Descripcion_garantia)>0 THEN TXT.Descripcion_garantia ELSE ''  END 
+,'Descripcion_garantia'		= CASE WHEN LEN(TXT.Descripcion_garantia)>0 THEN REPLACE(TXT.Descripcion_garantia,'|','') ELSE ''  END 
 ,'Valor_garantia'				= txt.Valor_garantia
 ,'Monto_cuota'				= txt.Monto_cuota
 ,'Cuota_total'				= txt.Cuota_total

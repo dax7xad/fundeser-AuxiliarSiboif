@@ -28,7 +28,6 @@ FROM dbo.FN_GS_Miembros(@FechaCorte)
 CREATE INDEX IdxJTS ON #FN_GS_Miembros(SALDO_JTS_OID)
 CREATE INDEX IdxCLIENTE ON #FN_GS_Miembros(COD_CLIENTE_M)
 
-
 --DROP TABLE #TempEGP
 SELECT * 
 INTO #TempEGP
@@ -199,7 +198,17 @@ SELECT
 															) 																 
 																ELSE s.C1632
 													END)  /* FIN DEL CONVERT*/)
-		/*38*/,'Tasa_efectiva_vigente' = CONVERT(NUMERIC(15,4),  (POWER(1 + s.C6645 * 12.0 / 100 / 365, 365 / 1) - 1)* 100) 		
+		/*38*/,'Tasa_efectiva_vigente' =  CONVERT(NUMERIC(15,4), (CASE 	WHEN egp.SITUACION_PRESTAMO = 'Saneado' 
+																		THEN 
+																		/* Extraido de la cdr */
+																		(POWER(1 
+ 					    + 
+ 					   (((SELECT hp.TASAINTERES FROM BS_HISTORIA_PLAZO hp WHERE (hp.TIPOMOV = 'A' OR hp.TIPOMOV = 'I') AND hp.SALDOS_JTS_OID = s.JTS_OID AND hp.TZ_LOCK = 0)/100)
+ 					   /12)
+ 					   ,12)-1)*100 /* En este campo va la tasa de costo efectiva anual*/
+																																			
+																		ELSE (POWER(1 + ((egp.TASA_INTERES/100)/12),12)-1)*100   
+		                                                    END)/* FIN DEL CONVERT*/)	
 	    /*39*/,'TASA_MORA' =  CONVERT(NUMERIC(15,4),( CASE	
 														WHEN egp.CODIGO_ESTADO IN ('C','E') 
 															THEN (	
@@ -229,7 +238,13 @@ SELECT
 		/*42*/,'VALOR_GARANTIA'		= ISNULL(MtosGtias.valor_contable,0)
 		/*43*/,'MONTO_CUOTA'			= MtoCuotaPlanPago.CapitalMasInteres
 		/*44*/,'CUOTA_TOTAL'			= MtoCuotaPlanPago.CapitalMasInteres+ISNULL(gpco.Importe_Gastos,0)	
-		/*45*/,'PRINCIPAL_CORRIENTE'	= egp.SALDO_VIGENTE_MO * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
+		/*45*/,'PRINCIPAL_CORRIENTE'	= isnull((SELECT sum(C2309) 
+		                          		     FROM BS_PLANPAGOS p with (nolock)
+ 											 WHERE p.SALDO_JTS_OID=s.JTS_OID
+ 											 AND p.C2302 >= @FechaCorte
+ 											 AND p.TZ_LOCK = 0
+ 											 AND p.C2309 > 0 
+ 											),0) * (CASE s.MONEDA WHEN 1 THEN 1 ELSE @TC END)
 		/*46*/,'PRINCIPAL_VENCIDO'		= isnull((SELECT sum(C2309) 
 		                          		     FROM BS_PLANPAGOS p with (nolock)
  											 WHERE p.SALDO_JTS_OID=s.JTS_OID
