@@ -133,7 +133,7 @@ SELECT
 		/*19*/,'FECHA_APROBACION'	 = FORMAT(ISNULL(sc.C5231,egp.FECHA_DESEMBOLSO),'dd/MM/yyyy')  --Si la fecha de aprobacion es nula, significa que es migrado de
 		                                                                                 --abacus, para ese caso utilizo la fecha de desembolsos en saldo
 		/*20*/,'FECHA_DESEMBOLSO'	 = ISNULL(FORMAT(egp.FECHA_DESEMBOLSO,'dd/MM/yyyy'),'')
-		/*21*/,'FECHA_VENCIMIENTO'	 = (SELECT FORMAT( MAX(bp.C2302),'dd/MM/yyyy') FROM BS_PLANPAGOS bp with (nolock) WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 ) --
+		/*21*/,'FECHA_VENCIMIENTO'	 = FORMAT(EGP.FECHA_VENCIMIENTO,'dd/MM/yyyy')
 	    /*22*/,'PLAZO'			 = DATEDIFF(DAY,s.C1620,(	SELECT MAX(bp.C2302)  
 														FROM BS_PLANPAGOS bp with (nolock) 
 														WHERE bp.SALDO_JTS_OID = s.JTS_OID AND bp.TZ_LOCK =0 ) /* FIN DEL DATEDIFF*/)
@@ -163,7 +163,7 @@ SELECT
 							END  
 		/*34*/,'DIAS_GRACIA'	= isnull(DiaGracia.dia,0)
 	    /*35*/,'TIPO_TASA'	= CASE WHEN /*cp.C6251*/egp.PRODUCTO LIKE '%COLABORADORES%' THEN 'Variable' ELSE 'Fija' END
-	    /*36*/,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,4), (CASE WHEN (egp.SITUACION_PRESTAMO = 'Saneado' )																						THEN ( /* si se cumple la condicion 
+	    /*36*/,'TASA_CONTRACTUAL' = CONVERT(NUMERIC(15,4), (CASE WHEN (egp.SITUACION_PRESTAMO in ('Saneado','Cobro Judicial') )																			THEN ( /* si se cumple la condicion 
 																		 se recupera directamente
 																		 del desembolso
 																		 */	
